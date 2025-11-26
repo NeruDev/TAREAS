@@ -1,0 +1,287 @@
+---------------------------------------------------------------------
+-- EJERCICIO 1
+---------------------------------------------------------------------
+-- Modela un circuito en VHDL utilizando la herramienta de edición de texto de Quartus II. 
+-- La entidad tendrá el nombre Tema2_NC (donde NC es tu número de control).
+-- El circuito debe tener una entrada de reloj CLK, un reset asíncrono RST, una entrada de datos serie D (1 bit) y una salida Z (1 bit).
+-- Agrega una arquitectura llamada Moore_Seq en la que se modele una Máquina de Estados Finita tipo Moore que detecte la secuencia "1011" 
+-- (con solapamiento permitido). La salida Z debe activarse únicamente cuando la secuencia sea detectada y el sistema se encuentre en el estado final.
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY Tema2_NC IS
+    PORT (
+        CLK : IN  STD_LOGIC;
+        RST : IN  STD_LOGIC;
+        D   : IN  STD_LOGIC;
+        Z   : OUT STD_LOGIC
+    );
+END ENTITY Tema2_NC;
+
+ARCHITECTURE Moore_Seq OF Tema2_NC IS
+    -- EJERCICIO 1
+    TYPE T_ESTADO IS (S_IDLE, S_VIO_1, S_VIO_10, S_VIO_101, S_VIO_1011);
+    SIGNAL s_estado_actual, s_estado_siguiente : T_ESTADO;
+
+BEGIN
+    proceso_secuencial: PROCESS (CLK, RST)
+    BEGIN
+        IF RST = '1' THEN
+            s_estado_actual <= S_IDLE;
+        ELSIF rising_edge(CLK) THEN
+            s_estado_actual <= s_estado_siguiente;
+        END IF;
+    END PROCESS proceso_secuencial;
+
+    proceso_combinacional: PROCESS (s_estado_actual, D)
+    BEGIN
+        CASE s_estado_actual IS
+            WHEN S_IDLE =>
+                IF D = '1' THEN
+                    s_estado_siguiente <= S_VIO_1;
+                ELSE
+                    s_estado_siguiente <= S_IDLE;
+                END IF;
+
+            WHEN S_VIO_1 =>
+                IF D = '0' THEN
+                    s_estado_siguiente <= S_VIO_10;
+                ELSE
+                    s_estado_siguiente <= S_VIO_1;
+                END IF;
+
+            WHEN S_VIO_10 =>
+                IF D = '1' THEN
+                    s_estado_siguiente <= S_VIO_101;
+                ELSE
+                    s_estado_siguiente <= S_IDLE;
+                END IF;
+
+            WHEN S_VIO_101 =>
+                IF D = '1' THEN
+                    s_estado_siguiente <= S_VIO_1011;
+                ELSE
+                    s_estado_siguiente <= S_VIO_10;
+                END IF;
+
+            WHEN S_VIO_1011 =>
+                IF D = '0' THEN
+                    s_estado_siguiente <= S_VIO_10;
+                ELSE
+                    s_estado_siguiente <= S_VIO_1;
+                END IF;
+        END CASE;
+    END PROCESS proceso_combinacional;
+
+    Z <= '1' WHEN s_estado_actual = S_VIO_1011 ELSE '0';
+
+END ARCHITECTURE Moore_Seq;
+
+---------------------------------------------------------------------
+-- EJERCICIO 2
+---------------------------------------------------------------------
+-- En el diseño anterior, agrega una nueva arquitectura llamada Mealy_Reac en la que se implemente la misma detección de secuencia ("1011"), 
+-- pero utilizando el modelo de Mealy.
+-- La salida Z debe activarse tan pronto como se reciba el último bit correcto de la secuencia, sin esperar al siguiente flanco de reloj 
+-- (salida asíncrona condicionada por la entrada).
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY Tema2_NC IS
+    PORT (
+        CLK : IN  STD_LOGIC;
+        RST : IN  STD_LOGIC;
+        D   : IN  STD_LOGIC;
+        Z   : OUT STD_LOGIC
+    );
+END ENTITY Tema2_NC;
+
+ARCHITECTURE Mealy_Reac OF Tema2_NC IS
+    -- EJERCICIO 2
+    TYPE T_ESTADO IS (S_IDLE, S_VIO_1, S_VIO_10, S_VIO_101);
+    SIGNAL s_estado_actual, s_estado_siguiente : T_ESTADO;
+
+BEGIN
+    proceso_secuencial: PROCESS (CLK, RST)
+    BEGIN
+        IF RST = '1' THEN
+            s_estado_actual <= S_IDLE;
+        ELSIF rising_edge(CLK) THEN
+            s_estado_actual <= s_estado_siguiente;
+        END IF;
+    END PROCESS proceso_secuencial;
+
+    proceso_combinacional: PROCESS (s_estado_actual, D)
+    BEGIN
+        Z <= '0';
+        CASE s_estado_actual IS
+            WHEN S_IDLE =>
+                IF D = '1' THEN s_estado_siguiente <= S_VIO_1;
+                ELSE s_estado_siguiente <= S_IDLE; END IF;
+            WHEN S_VIO_1 =>
+                IF D = '0' THEN s_estado_siguiente <= S_VIO_10;
+                ELSE s_estado_siguiente <= S_VIO_1; END IF;
+            WHEN S_VIO_10 =>
+                IF D = '1' THEN s_estado_siguiente <= S_VIO_101;
+                ELSE s_estado_siguiente <= S_IDLE; END IF;
+            WHEN S_VIO_101 =>
+                IF D = '1' THEN
+                    Z <= '1';
+                    s_estado_siguiente <= S_VIO_1;
+                ELSE
+                    s_estado_siguiente <= S_IDLE;
+                END IF;
+        END CASE;
+    END PROCESS proceso_combinacional;
+
+END ARCHITECTURE Mealy_Reac;
+
+---------------------------------------------------------------------
+-- EJERCICIO 3
+---------------------------------------------------------------------
+-- Utilizando la herramienta de Diagrama de Máquina de Estados (State Machine File) de Quartus II o diseñando mentalmente el Diagrama ASM, 
+-- agrega una arquitectura llamada Control_ASM.
+-- Esta arquitectura debe modelar un controlador para un sistema de bombeo con las siguientes características:
+-- Entradas: Sensor_Alto, Sensor_Bajo (sensores de nivel de agua).
+-- Salidas: Bomba_On, Alarma.
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY Control_ASM IS
+    PORT (
+        CLK         : IN  STD_LOGIC;
+        RST         : IN  STD_LOGIC;
+        Sensor_Alto : IN  STD_LOGIC;
+        Sensor_Bajo : IN  STD_LOGIC;
+        Bomba_On    : OUT STD_LOGIC;
+        Alarma      : OUT STD_LOGIC
+    );
+END ENTITY Control_ASM;
+
+ARCHITECTURE FSM_Control OF Control_ASM IS
+    -- EJERCICIO 3
+    TYPE T_ESTADO IS (S_REPOSO, S_LLENANDO, S_ERROR);
+    SIGNAL s_estado : T_ESTADO;
+BEGIN
+    proceso_fsm: PROCESS (CLK, RST)
+    BEGIN
+        IF RST = '1' THEN
+            s_estado <= S_REPOSO;
+        ELSIF rising_edge(CLK) THEN
+            IF Sensor_Alto = '1' AND Sensor_Bajo = '0' THEN
+                s_estado <= S_ERROR;
+            ELSE
+                CASE s_estado IS
+                    WHEN S_REPOSO =>
+                        IF Sensor_Bajo = '0' THEN s_estado <= S_LLENANDO; END IF;
+                    WHEN S_LLENANDO =>
+                        IF Sensor_Alto = '1' THEN s_estado <= S_REPOSO; END IF;
+                    WHEN S_ERROR =>
+                        s_estado <= S_ERROR;
+                END CASE;
+            END IF;
+        END IF;
+    END PROCESS proceso_fsm;
+
+    Bomba_On <= '1' WHEN s_estado = S_LLENANDO ELSE '0';
+    Alarma   <= '1' WHEN s_estado = S_ERROR ELSE '0';
+END ARCHITECTURE FSM_Control;
+
+---------------------------------------------------------------------
+-- EJERCICIO 4
+---------------------------------------------------------------------
+-- Agrega una arquitectura llamada Logisim_Integration diseñada para ser sintetizada y simulada dentro de Logisim-evolution.
+-- El sistema debe funcionar como un Semáforo Simple de 3 estados (Verde, Amarillo, Rojo) que cambia en cada flanco de reloj, 
+-- pero con una señal de entrada Halt (Pausa).
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY Logisim_Integration IS
+    PORT (
+        CLK   : IN  STD_LOGIC;
+        RST   : IN  STD_LOGIC;
+        Halt  : IN  STD_LOGIC;
+        Luces : OUT STD_LOGIC_VECTOR(2 DOWNTO 0)
+    );
+END ENTITY Logisim_Integration;
+
+ARCHITECTURE FSM_Semaforo OF Logisim_Integration IS
+    -- EJERCICIO 4
+    TYPE T_ESTADO IS (S_VERDE, S_AMARILLO, S_ROJO);
+    SIGNAL s_estado : T_ESTADO;
+BEGIN
+    proceso_fsm: PROCESS (CLK, RST)
+    BEGIN
+        IF RST = '1' THEN
+            s_estado <= S_VERDE;
+        ELSIF rising_edge(CLK) THEN
+            IF Halt = '0' THEN
+                CASE s_estado IS
+                    WHEN S_VERDE    => s_estado <= S_AMARILLO;
+                    WHEN S_AMARILLO => s_estado <= S_ROJO;
+                    WHEN S_ROJO     => s_estado <= S_VERDE;
+                END CASE;
+            END IF;
+        END IF;
+    END PROCESS proceso_fsm;
+
+    WITH s_estado SELECT
+        Luces <= "001" WHEN S_VERDE,
+                 "010" WHEN S_AMARILLO,
+                 "100" WHEN S_ROJO;
+END ARCHITECTURE FSM_Semaforo;
+
+---------------------------------------------------------------------
+-- EJERCICIO 5
+---------------------------------------------------------------------
+-- Adiciona una arquitectura final de nombre FSM_Datapath donde se modele un sistema híbrido (FSM + Contador).
+-- El circuito debe tener una entrada A de 4 bits.
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+USE ieee.numeric_std.all;
+
+ENTITY FSM_Datapath IS
+    PORT (
+        CLK   : IN  STD_LOGIC;
+        RST   : IN  STD_LOGIC;
+        Start : IN  STD_LOGIC;
+        A     : IN  STD_LOGIC_VECTOR(3 DOWNTO 0);
+        Z     : OUT STD_LOGIC
+    );
+END ENTITY FSM_Datapath;
+
+ARCHITECTURE Hibrido OF FSM_Datapath IS
+    -- EJERCICIO 5
+    TYPE T_ESTADO IS (S_ESPERA, S_CALCULAR);
+    SIGNAL s_estado : T_ESTADO;
+    SIGNAL s_z_interna : STD_LOGIC := '0';
+BEGIN
+    proceso_hibrido: PROCESS (CLK, RST)
+    BEGIN
+        IF RST = '1' THEN
+            s_estado <= S_ESPERA;
+            s_z_interna <= '0';
+        ELSIF rising_edge(CLK) THEN
+            CASE s_estado IS
+                WHEN S_ESPERA =>
+                    s_z_interna <= '0';
+                    IF Start = '1' THEN
+                        s_estado <= S_CALCULAR;
+                    END IF;
+                WHEN S_CALCULAR =>
+                    IF TO_INTEGER(UNSIGNED(A)) > 10 THEN
+                        s_z_interna <= NOT s_z_interna;
+                    ELSE
+                        s_z_interna <= '1';
+                    END IF;
+            END CASE;
+        END IF;
+    END PROCESS proceso_hibrido;
+
+    Z <= s_z_interna;
+END ARCHITECTURE Hibrido;
